@@ -35,7 +35,6 @@ class ArgentinianReportCustomHandlerExtended(models.AbstractModel):
             
             document_type = result.get('document_type_name', {})
             document_type = document_type.get('es_AR', list(document_type.values())[0] if document_type else '')
-            _logger.info(f"Documento: {document_type}")
             currency_name = result.get('currency_name', '')
             currency_rate = result.get('currency_rate', 0.0)
             

@@ -20,7 +20,6 @@ class PartnerLedgerUSD(models.AbstractModel):
                 currency = self.env['res.currency'].browse(aml.get('currency_id'))
                 if currency and currency.name == 'USD':  # Solo acumulamos si es USD
                     balance_usd += aml.get('amount_currency', 0.0)  # Acumulamos el balance
-                    _logger.info(f"Balance: {balance_usd}" )
                 aml['balance_usd'] = balance_usd  # Asignamos el balance acumulado a la línea
         
         return rslt
@@ -33,7 +32,6 @@ class PartnerLedgerUSD(models.AbstractModel):
             init_bal_by_col_group['balance_usd'] = 0.0
             
         balance_usd = aml_query_result.get('balance_usd', 0.0)
-        _logger.info(f"Updated Balance USD: {balance_usd}")
         
         # Sumar el balance actual en USD a la acumulación
         #init_bal_by_col_group['balance_usd'] += aml_query_result.get('amount_currency', 0.0)
@@ -44,7 +42,6 @@ class PartnerLedgerUSD(models.AbstractModel):
         
         # Asegurar que el formato de moneda es USD
         usd_currency = self.env['res.currency'].search([('name', '=', 'USD')], limit=1)
-        _logger.info(f"Currency: {usd_currency}" )
         # Obtener referencia del reporte
         report = self.env['account.report'].browse(options['report_id'])
         # Obtener referencia del reporte
@@ -121,7 +118,6 @@ class PartnerLedgerUSD(models.AbstractModel):
         """
         def assign_sum(row):
             fields_to_assign = ['balance', 'debit', 'credit','balance_usd']
-            _logger.info(f"Row: {row}")
             if any(not company_currency.is_zero(row[field]) for field in fields_to_assign):
                 groupby_partners.setdefault(row['groupby'], defaultdict(lambda: defaultdict(float)))
                 for field in fields_to_assign:
@@ -131,13 +127,11 @@ class PartnerLedgerUSD(models.AbstractModel):
 
         # Execute the queries and dispatch the results.
         query, params = self._get_query_sums(options)
-        _logger.info(f"Query: {query}")
         groupby_partners = {}
 
         self._cr.execute(query, params)
         for res in self._cr.dictfetchall():
             assign_sum(res)
-            _logger.info(f"Res: {res}")
         # Correct the sums per partner, for the lines without partner reconciled with a line having a partner
         query, params = self._get_sums_without_partner(options)
 
@@ -147,7 +141,6 @@ class PartnerLedgerUSD(models.AbstractModel):
             totals[total_field] = {col_group_key: 0 for col_group_key in options['column_groups']}
 
         for row in self._cr.dictfetchall():
-            _logger.info(f"Row balance_usd:  {row['balance_usd']}")
             totals['debit'][row['column_group_key']] += row['debit']
             totals['credit'][row['column_group_key']] += row['credit']
             totals['balance'][row['column_group_key']] += row['balance']
@@ -157,8 +150,6 @@ class PartnerLedgerUSD(models.AbstractModel):
                 continue
 
             assign_sum(row)
-            _logger.info(f"Row: {row}")
-        _logger.info(f"Totals: {totals}")
         if None in groupby_partners:
             # Debit/credit are inverted for the unknown partner as the computation is made regarding the balance of the known partner
             for column_group_key in options['column_groups']:
@@ -208,13 +199,10 @@ class PartnerLedgerUSD(models.AbstractModel):
                 for column_group_key in options['column_groups']:
                     partner_sum = results.get(column_group_key, {})
     
-                    _logger.info(f"Partner sum: {partner_sum}")
                     partner_values[column_group_key]['debit'] = partner_sum.get('debit', 0.0)
                     partner_values[column_group_key]['credit'] = partner_sum.get('credit', 0.0)
                     partner_values[column_group_key]['balance'] = partner_sum.get('balance', 0.0)
                     partner_values[column_group_key]['balance_usd'] = partner_sum.get('balance_usd', 0.0)
-
-                    _logger.info(f"Column group key: {column_group_key}")
     
                     totals_by_column_group[column_group_key]['debit'] += partner_values[column_group_key]['debit']
                     totals_by_column_group[column_group_key]['credit'] += partner_values[column_group_key]['credit']
