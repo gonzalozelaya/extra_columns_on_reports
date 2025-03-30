@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models, tools
+import logging
 
+_logger = logging.getLogger(__name__)
 class AccountArVatLineExtended(models.Model):
     _inherit = "account.ar.vat.line"
 
@@ -8,7 +10,8 @@ class AccountArVatLineExtended(models.Model):
     currency_name = fields.Char(string="Currency", readonly=True)
     currency_rate = fields.Float(string="Exchange Rate", readonly=True)
     document_type_name = fields.Char(string="Document type", readonly=True)
-
+    tax_date = fields.Date(readonly=True)
+    
     @api.model
     def _ar_vat_line_build_query(self, tables='account_move_line', where_clause='', where_params=None,
                                  column_group_key='', tax_types=('sale', 'purchase')):
@@ -19,7 +22,11 @@ class AccountArVatLineExtended(models.Model):
         The query is used to build the VAT book report"""
         if where_params is None:
             where_params = []
-
+        where_clause = where_clause.replace(
+            '"account_move_line"."date"',
+            'COALESCE("account_move_line"."tax_date", "account_move_line"."date")'
+        )
+        _logger.info(f"Where clause replaced: {where_clause}")
         query = f"""
                 SELECT
                     %s AS column_group_key,
@@ -30,6 +37,7 @@ class AccountArVatLineExtended(models.Model):
                     COALESCE(nt.type_tax_use, bt.type_tax_use) AS tax_type,
                     account_move.id AS move_id,
                     account_move.move_type,
+                    account_move.tax_date,
                     account_move.date,
                     account_move.invoice_date,
                     account_move.partner_id,
@@ -94,5 +102,5 @@ class AccountArVatLineExtended(models.Model):
                 GROUP BY
                     account_move.id, art.name, rp.id, lit.id,  COALESCE(nt.type_tax_use, bt.type_tax_use), currency.id, doc_type.name
                 ORDER BY
-                    account_move.invoice_date, account_move.name"""
+                     COALESCE(account_move.tax_date, account_move.date),account_move.invoice_date, account_move.name"""
         return query, [column_group_key, tax_types, tax_types, *where_params]

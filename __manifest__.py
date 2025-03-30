@@ -19,7 +19,7 @@
     'version': '1.0',
 
     # any module necessary for this one to work correctly
-    'depends': ['account','account_reports','l10n_ar_reports'],
+    'depends': ['account','account_reports','l10n_ar_reports','tax_date_field '],
 
     # always loaded
 
