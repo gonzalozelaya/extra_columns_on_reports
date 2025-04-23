@@ -65,9 +65,33 @@ class ArgentinianReportCustomHandlerExtended(models.AbstractModel):
             (0, self._create_report_line(report, options, move_info, move_id, number_keys))
             for move_id, move_info in move_info_dict.items()
         ]
+        if lines:  # Solo si hay líneas para mostrar
+            total_line = self._create_total_line(report, options, total_values_dict, number_keys)
+            lines.append((0, total_line))
         
         return lines
+
+    def _create_total_line(self, report, options, total_values_dict, number_keys):
+        columns = []
+        for column in options['columns']:
+            expression_label = column['expression_label']
+            
+            if expression_label in ['document_type', 'currency_rate', 'currency_id', 'tax_date','afip_responsibility_type_name']:
+                value = ''
+            else:
+                # Obtener el valor total para esta columna
+                column_group_key = column['column_group_key']
+                value = total_values_dict.get(column_group_key, {}).get(expression_label, '')
+            
+            columns.append(report._build_column_dict(value, column, options=options))
     
+        return {
+            'id': report._get_generic_line_id('account.tax.report.total', 0),
+            'name': _("Total"),
+            'columns': columns,
+            'level': 1,
+            'class': 'total',
+        }
     def _create_report_line(self, report, options, move_vals, move_id, number_values):
         columns = []
         for column in options['columns']:
